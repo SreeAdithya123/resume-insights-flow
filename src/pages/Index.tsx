@@ -5,8 +5,7 @@ import HowItWorks from "@/components/HowItWorks";
 import FeedbackDisplay from "@/components/FeedbackDisplay";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { FileText, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { FileText, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface FeedbackData {
@@ -36,8 +35,7 @@ const Index = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [feedbackData, setFeedbackData] = useState<FeedbackData | null>(null);
-  const [apiKey, setApiKey] = useState("vaH5yXCtZMCYFFlljqJWzsVKcJO7Rs4eEglOAEOC");
-  const [showApiKey, setShowApiKey] = useState(false);
+  const apiKey = "vaH5yXCtZMCYFFlljqJWzsVKcJO7Rs4eEglOAEOC"; // Integrated API key
   const { toast } = useToast();
 
   const handleFileUpload = (file: File) => {
@@ -122,15 +120,6 @@ const Index = () => {
   const handleAnalyze = async () => {
     if (!uploadedFile) return;
     
-    if (!apiKey.trim()) {
-      toast({
-        title: "API Key Required",
-        description: "Please enter your Perplexity API key to analyze the resume.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setIsScanning(true);
     
     try {
@@ -186,38 +175,12 @@ const Index = () => {
 
           {/* File Upload and Analyze Section */}
           <div className="bg-white rounded-2xl shadow-xl p-8 mb-16 max-w-2xl mx-auto">
-            {/* API Key Input */}
-            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <h3 className="text-sm font-medium text-yellow-800 mb-2">API Configuration</h3>
-              <div className="relative">
-                <Input
-                  type={showApiKey ? "text" : "password"}
-                  placeholder="Enter your Perplexity API key"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="pr-10"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                >
-                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-              </div>
-              <p className="text-xs text-yellow-700 mt-1">
-                Your API key is stored locally and never shared. Get one at perplexity.ai
-              </p>
-            </div>
-
             <FileUpload onFileUpload={handleFileUpload} />
             
             <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={handleAnalyze}
-                disabled={!uploadedFile || isScanning || !apiKey.trim()}
+                disabled={!uploadedFile || isScanning}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 size="lg"
               >

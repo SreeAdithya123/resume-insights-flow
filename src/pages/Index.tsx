@@ -1,9 +1,9 @@
-
 import { useState } from "react";
 import FileUpload from "@/components/FileUpload";
 import HowItWorks from "@/components/HowItWorks";
 import FeedbackDisplay from "@/components/FeedbackDisplay";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import GeneratedResume from "@/components/GeneratedResume";
 import { Button } from "@/components/ui/button";
 import { FileText, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -35,12 +35,15 @@ const Index = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [feedbackData, setFeedbackData] = useState<FeedbackData | null>(null);
+  const [isGeneratingResume, setIsGeneratingResume] = useState(false);
+  const [generatedResume, setGeneratedResume] = useState<string | null>(null);
   const apiKey = "vaH5yXCtZMCYFFlljqJWzsVKcJO7Rs4eEglOAEOC"; // Cohere API key
   const { toast } = useToast();
 
   const handleFileUpload = (file: File) => {
     setUploadedFile(file);
     setFeedbackData(null);
+    setGeneratedResume(null);
   };
 
   const extractTextFromFile = async (file: File): Promise<string> => {
@@ -140,6 +143,75 @@ Please provide specific, actionable feedback for improving this resume. Format y
     }
   };
 
+  const generateNewResume = async () => {
+    if (!feedbackData || !uploadedFile) return;
+    
+    setIsGeneratingResume(true);
+    
+    try {
+      console.log("Generating new resume...");
+      const originalText = await extractTextFromFile(uploadedFile);
+      
+      const response = await fetch('https://api.cohere.ai/v1/generate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Cohere-Version': '2022-12-06'
+        },
+        body: JSON.stringify({
+          model: 'command',
+          prompt: `Based on the following resume and improvement feedback, generate a new, improved professional resume. Apply all the suggestions and replacements provided in the feedback. Make it well-structured, professional, and compelling.
+
+Original Resume:
+${originalText}
+
+Feedback to implement:
+Summary improvements: ${feedbackData.summary.suggestions.join(', ')}. Use these replacements: ${feedbackData.summary.replacements.join(', ')}
+
+Experience improvements: ${feedbackData.experience.suggestions.join(', ')}. Use these replacements: ${feedbackData.experience.replacements.join(', ')}
+
+Education improvements: ${feedbackData.education.suggestions.join(', ')}. Use these replacements: ${feedbackData.education.replacements.join(', ')}
+
+Skills improvements: ${feedbackData.skills.suggestions.join(', ')}. Use these replacements: ${feedbackData.skills.replacements.join(', ')}
+
+Generate a complete, professional resume incorporating all these improvements:`,
+          max_tokens: 2000,
+          temperature: 0.5,
+          k: 0,
+          stop_sequences: [],
+          return_likelihoods: 'NONE'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API Error:", errorText);
+        throw new Error(`Failed to generate resume: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Resume generation response:", data);
+      
+      const newResume = data.generations?.[0]?.text || '';
+      setGeneratedResume(newResume);
+      
+      toast({
+        title: "Resume Generated",
+        description: "Your new professional resume has been created!",
+      });
+    } catch (error) {
+      console.error("Error generating resume:", error);
+      toast({
+        title: "Generation Failed", 
+        description: error instanceof Error ? error.message : "There was an error generating your resume. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingResume(false);
+    }
+  };
+
   const handleAnalyze = async () => {
     if (!uploadedFile) return;
     
@@ -173,6 +245,7 @@ Please provide specific, actionable feedback for improving this resume. Format y
   const handleReScan = () => {
     setUploadedFile(null);
     setFeedbackData(null);
+    setGeneratedResume(null);
     setIsScanning(false);
   };
 
@@ -235,15 +308,44 @@ Please provide specific, actionable feedback for improving this resume. Format y
       </section>
 
       {/* Loading Spinner */}
-      {isScanning && <LoadingSpinner />}
+      {(isScanning || isGeneratingResume) && <LoadingSpinner />}
 
       {/* Feedback Display */}
-      {feedbackData && !isScanning && (
-        <FeedbackDisplay data={feedbackData} />
+      {feedbackData && !isScanning && !generatedResume && (
+        <>
+          <FeedbackDisplay data={feedbackData} />
+          
+          {/* Generate New Resume Section */}
+          <section className="py-8 px-4 bg-gray-50">
+            <div className="max-w-4xl mx-auto text-center">
+              <div className="bg-white rounded-2xl shadow-lg p-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                  Ready to Improve Your Resume?
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Generate a new professional resume that incorporates all the feedback and suggestions.
+                </p>
+                <Button
+                  onClick={generateNewResume}
+                  disabled={isGeneratingResume}
+                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 disabled:opacity-50"
+                  size="lg"
+                >
+                  {isGeneratingResume ? "Generating..." : "Generate New Resume"}
+                </Button>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* Generated Resume Display */}
+      {generatedResume && !isGeneratingResume && (
+        <GeneratedResume content={generatedResume} onBack={() => setGeneratedResume(null)} />
       )}
 
       {/* How It Works Section */}
-      {!feedbackData && !isScanning && <HowItWorks />}
+      {!feedbackData && !isScanning && !generatedResume && <HowItWorks />}
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12 mt-20">
